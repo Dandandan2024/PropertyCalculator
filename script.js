@@ -34,15 +34,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const index = Array.from(parentTable.children).indexOf(row);
         const divisionTable = parentTable.id === "assetTable" ? assetDivisionTable : liabilityDivisionTable;
         const description = row.querySelector('.description').value;
+        const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
+        const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
         const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(row.querySelector('.allocation') ? row.querySelector('.allocation').value : 50) || 50;
+        const allocation = parseFloat(row.querySelector('.allocation').value) || 50;
 
         const divisionRow = divisionTable.children[index];
         divisionRow.querySelector('.description').textContent = description;
         divisionRow.querySelector('.you').textContent = (agreedValue * (1 - allocation / 100)).toFixed(2);
         divisionRow.querySelector('.other').textContent = (agreedValue * (allocation / 100)).toFixed(2);
 
-        const label = divisionRow.querySelector('.slider-label');
+        const label = row.querySelector('.slider-label');
         if (allocation === 0) {
             label.textContent = `Transfer to You: ${agreedValue}`;
         } else if (allocation === 100) {
@@ -54,27 +56,22 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateAdjustments();
     }
 
-    window.updateSlider = function(slider) {
-        const row = slider.parentElement.parentElement;
-        const parentTable = row.parentElement.parentElement;
-        const index = Array.from(parentTable.children).indexOf(row);
-        const divisionTable = parentTable.id === "assetDivisionTable" ? assetDivisionTable : liabilityDivisionTable;
-        const agreedValue = parseFloat(parentTable.children[index].querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(slider.value) || 0;
+    window.validateInput = function(input) {
+        const row = input.parentElement.parentElement;
+        const description = row.querySelector('.description').value;
+        const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
 
-        divisionTable.children[index].querySelector('.you').textContent = (agreedValue * (1 - allocation / 100)).toFixed(2);
-        divisionTable.children[index].querySelector('.other').textContent = (agreedValue * (allocation / 100)).toFixed(2);
-
-        const label = divisionTable.children[index].querySelector('.slider-label');
-        if (allocation === 0) {
-            label.textContent = `Transfer to You: ${agreedValue}`;
-        } else if (allocation === 100) {
-            label.textContent = `Transfer to Other Party: ${agreedValue}`;
-        } else {
-            label.textContent = `Sale: ${agreedValue} (You: ${(agreedValue * (1 - allocation / 100)).toFixed(2)}, Other Party: ${(agreedValue * (allocation / 100)).toFixed(2)})`;
+        if (input.classList.contains('description') && description.trim() === "") {
+            alert("Description cannot be empty.");
+            input.focus();
+            return;
         }
 
-        calculateAdjustments();
+        if (input.classList.contains('agreedValue') && agreedValue <= 0) {
+            alert("Agreed Value must be greater than zero.");
+            input.focus();
+            return;
+        }
     }
 
     function addRow(description, yourValue, otherValue, agreedValue, allocation, parentTable, divisionTable) {
@@ -84,6 +81,10 @@ document.addEventListener("DOMContentLoaded", () => {
             <td><input type="number" class="yourValue" placeholder="Your Value" value="${yourValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
             <td><input type="number" class="otherValue" placeholder="Other Party's Value" value="${otherValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
             <td><input type="number" class="agreedValue" placeholder="Agreed Valuation" value="${agreedValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
+            <td>
+                <input type="range" class="allocation" min="0" max="100" value="${allocation}" oninput="updateDivision(this)">
+                <div class="slider-label">${allocation === 0 ? `Transfer to You: ${agreedValue}` : allocation === 100 ? `Transfer to Other Party: ${agreedValue}` : `Sale: ${agreedValue} (You: ${(agreedValue * (1 - allocation / 100)).toFixed(2)}, Other Party: ${(agreedValue * (allocation / 100)).toFixed(2)})`}</div>
+            </td>
             <td><button onclick="removeRow(this)">Remove</button></td>
         `;
         parentTable.appendChild(row);
@@ -91,10 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
         divisionRow.innerHTML = `
             <td class="description">${description}</td>
             <td class="you">${(agreedValue * (1 - allocation / 100)).toFixed(2)}</td>
-            <td>
-                <input type="range" class="allocation" min="0" max="100" value="${allocation}" oninput="updateSlider(this)">
-                <div class="slider-label">${allocation === 0 ? `Transfer to You: ${agreedValue}` : allocation === 100 ? `Transfer to Other Party: ${agreedValue}` : `Sale: ${agreedValue} (You: ${(agreedValue * (1 - allocation / 100)).toFixed(2)}, Other Party: ${(agreedValue * (allocation / 100)).toFixed(2)})`}</div>
-            </td>
             <td class="other">${(agreedValue * (allocation / 100)).toFixed(2)}</td>
         `;
         divisionTable.appendChild(divisionRow);
@@ -106,18 +103,18 @@ document.addEventListener("DOMContentLoaded", () => {
         let totalLiabilityYouValue = 0;
         let totalLiabilityOtherValue = 0;
 
-        assetDivisionTable.querySelectorAll('tr').forEach(row => {
-            const you = parseFloat(row.querySelector('.you').textContent) || 0;
-            const other = parseFloat(row.querySelector('.other').textContent) || 0;
-            totalAssetYouValue += you;
-            totalAssetOtherValue += other;
+        assetTable.querySelectorAll('tr').forEach(row => {
+            const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
+            const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
+            totalAssetYouValue += agreedValue * (1 - allocation / 100);
+            totalAssetOtherValue += agreedValue * (allocation / 100);
         });
 
-        liabilityDivisionTable.querySelectorAll('tr').forEach(row => {
-            const you = parseFloat(row.querySelector('.you').textContent) || 0;
-            const other = parseFloat(row.querySelector('.other').textContent) || 0;
-            totalLiabilityYouValue += you;
-            totalLiabilityOtherValue += other;
+        liabilityTable.querySelectorAll('tr').forEach(row => {
+            const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
+            const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
+            totalLiabilityYouValue += agreedValue * (1 - allocation / 100);
+            totalLiabilityOtherValue += agreedValue * (allocation / 100);
         });
 
         const netTotalYouValue = totalAssetYouValue - totalLiabilityYouValue;
@@ -148,7 +145,7 @@ function exportToCSV() {
         const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
         const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
         const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(assetDivisionTable.children[index].querySelector('.allocation').value) || 0;
+        const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
         const divisionRow = assetDivisionTable.children[index];
         const you = divisionRow.querySelector('.you').textContent;
         const other = divisionRow.querySelector('.other').textContent;
@@ -160,7 +157,7 @@ function exportToCSV() {
         const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
         const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
         const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(liabilityDivisionTable.children[index].querySelector('.allocation').value) || 0;
+        const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
         const divisionRow = liabilityDivisionTable.children[index];
         const you = divisionRow.querySelector('.you').textContent;
         const other = divisionRow.querySelector('.other').textContent;
