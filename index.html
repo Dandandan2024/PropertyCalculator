@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Division Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Property Division Calculator</h1>
+    <div class="calculator">
+        <div class="assets-liabilities">
+            <h2>Assets and Liabilities</h2>
+            <h3>Assets</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Your Value</th>
+                        <th>Other Party's Value</th>
+                        <th>Agreed Valuation</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="assetTable">
+                    <!-- Rows for assets will go here -->
+                </tbody>
+            </table>
+            <button onclick="addAssetRow()">Add Asset Row</button>
+            <h3>Liabilities</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Your Value</th>
+                        <th>Other Party's Value</th>
+                        <th>Agreed Valuation</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="liabilityTable">
+                    <!-- Rows for liabilities will go here -->
+                </tbody>
+            </table>
+            <button onclick="addLiabilityRow()">Add Liability Row</button>
+        </div>
+        <div class="property-division">
+            <h2>Property Division</h2>
+            <h3>Assets</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>You</th>
+                        <th>Allocation</th>
+                        <th>Other Party</th>
+                    </tr>
+                </thead>
+                <tbody id="assetDivisionTable">
+                    <!-- Rows for asset division will go here -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>Total Assets</td>
+                        <td id="totalAssetYou">0.00</td>
+                        <td></td>
+                        <td id="totalAssetOther">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <h3>Liabilities</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>You</th>
+                        <th>Allocation</th>
+                        <th>Other Party</th>
+                    </tr>
+                </thead>
+                <tbody id="liabilityDivisionTable">
+                    <!-- Rows for liability division will go here -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>Total Liabilities</td>
+                        <td id="totalLiabilityYou">0.00</td>
+                        <td></td>
+                        <td id="totalLiabilityOther">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <h3>Net Total</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>You</th>
+                        <th>Allocation</th>
+                        <th>Other Party</th>
+                    </tr>
+                </thead>
+                <tfoot>
+                    <tr>
+                        <td>Net Total</td>
+                        <td id="netTotalYou">0.00</td>
+                        <td></td>
+                        <td id="netTotalOther">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <button onclick="exportToCSV()">Export to CSV</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
