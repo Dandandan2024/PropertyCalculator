@@ -2,8 +2,8 @@
 // Replace these values with your actual Supabase project credentials
 
 const config = {
-    SUPABASE_URL: 'YOUR_SUPABASE_URL',
-    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY'
+    SUPABASE_URL: 'https://rnhryqxgudrnqbpfhvyk.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuaHJ5cXhndWRybnFicGZodnlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMzUxOTcsImV4cCI6MjA3MDYxMTE5N30.OZsUptCwW5ojlPAkHqXJ1LiYJd1TaAgrYvr8npkTupI'
 };
 
 // Example configuration (uncomment and modify with your actual values):
