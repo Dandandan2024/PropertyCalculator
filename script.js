@@ -1,176 +1,435 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const assetTable = document.getElementById("assetTable");
-    const liabilityTable = document.getElementById("liabilityTable");
-    const assetDivisionTable = document.getElementById("assetDivisionTable");
-    const liabilityDivisionTable = document.getElementById("liabilityDivisionTable");
-    const totalAssetYou = document.getElementById("totalAssetYou");
-    const totalAssetOther = document.getElementById("totalAssetOther");
-    const totalLiabilityYou = document.getElementById("totalLiabilityYou");
-    const totalLiabilityOther = document.getElementById("totalLiabilityOther");
-    const netTotalYou = document.getElementById("netTotalYou");
-    const netTotalOther = document.getElementById("netTotalOther");
+// Supabase configuration
+import config from './config.js';
 
-    window.addAssetRow = function(description = "", yourValue = 0, otherValue = 0, agreedValue = 0, allocation = 50) {
-        addRow(description, yourValue, otherValue, agreedValue, allocation, assetTable, assetDivisionTable);
-    }
+// Initialize Supabase client
+const supabase = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
-    window.addLiabilityRow = function(description = "", yourValue = 0, otherValue = 0, agreedValue = 0, allocation = 50) {
-        addRow(description, yourValue, otherValue, agreedValue, allocation, liabilityTable, liabilityDivisionTable);
-    }
+// Global variables
+let currentUser = null;
+let notes = [];
+let editingNoteId = null;
 
-    window.removeRow = function(button) {
-        const row = button.parentElement.parentElement;
-        const parentTable = row.parentElement;
-        const index = Array.from(parentTable.children).indexOf(row);
-        const divisionTable = parentTable.id === "assetTable" ? assetDivisionTable : liabilityDivisionTable;
-        parentTable.removeChild(row);
-        divisionTable.removeChild(divisionTable.children[index]);
-        calculateAdjustments();
-    }
+// DOM elements
+const noteTitleInput = document.getElementById('noteTitle');
+const noteContentInput = document.getElementById('noteContent');
+const saveNoteBtn = document.getElementById('saveNote');
+const clearNoteBtn = document.getElementById('clearNote');
+const searchInput = document.getElementById('searchNotes');
+const notesList = document.getElementById('notesList');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const noNotesMessage = document.getElementById('noNotesMessage');
+const noteModal = document.getElementById('noteModal');
+const editNoteTitle = document.getElementById('editNoteTitle');
+const editNoteContent = document.getElementById('editNoteContent');
+const updateNoteBtn = document.getElementById('updateNote');
+const deleteNoteBtn = document.getElementById('deleteNote');
+const closeModalBtn = document.getElementById('closeModal');
+const cancelEditBtn = document.getElementById('cancelEdit');
 
-    window.updateDivision = function(input) {
-        const row = input.parentElement.parentElement;
-        const parentTable = row.parentElement;
-        const index = Array.from(parentTable.children).indexOf(row);
-        const divisionTable = parentTable.id === "assetTable" ? assetDivisionTable : liabilityDivisionTable;
-        const description = row.querySelector('.description').value;
-        const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
-        const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
-        const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(row.querySelector('.allocation').value) || 50;
+// Event listeners
+document.addEventListener('DOMContentLoaded', initializeApp);
+saveNoteBtn.addEventListener('click', saveNote);
+clearNoteBtn.addEventListener('click', clearNoteForm);
+searchInput.addEventListener('input', debounce(handleSearch, 300));
+closeModalBtn.addEventListener('click', closeModal);
+cancelEditBtn.addEventListener('click', closeModal);
+updateNoteBtn.addEventListener('click', updateNote);
+deleteNoteBtn.addEventListener('click', deleteNote);
 
-        const divisionRow = divisionTable.children[index];
-        divisionRow.querySelector('.description').textContent = description;
-        divisionRow.querySelector('.you').textContent = (agreedValue * (1 - allocation / 100)).toFixed(2);
-        divisionRow.querySelector('.other').textContent = (agreedValue * (allocation / 100)).toFixed(2);
-
-        const label = row.querySelector('.slider-label');
-        if (allocation === 0) {
-            label.textContent = `Transfer to You: ${agreedValue}`;
-        } else if (allocation === 100) {
-            label.textContent = `Transfer to Other Party: ${agreedValue}`;
+// Initialize the application
+async function initializeApp() {
+    try {
+        // Check if user is authenticated
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            currentUser = user;
+            await loadNotes();
         } else {
-            label.textContent = `Sale: ${agreedValue} (You: ${(agreedValue * (1 - allocation / 100)).toFixed(2)}, Other Party: ${(agreedValue * (allocation / 100)).toFixed(2)})`;
+            // For demo purposes, we'll use anonymous access
+            // In production, you'd want to implement proper authentication
+            currentUser = { id: 'anonymous' };
+            await loadNotes();
         }
-
-        calculateAdjustments();
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        showToast('Error initializing app. Please check your Supabase configuration.', 'error');
     }
+}
 
-    window.validateInput = function(input) {
-        const row = input.parentElement.parentElement;
-        const description = row.querySelector('.description').value;
-        const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-
-        if (input.classList.contains('description') && description.trim() === "") {
-            alert("Description cannot be empty.");
-            input.focus();
-            return;
+// Load notes from database
+async function loadNotes() {
+    try {
+        showLoading(true);
+        
+        const { data, error } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        notes = data || [];
+        renderNotes();
+        showLoading(false);
+        
+        if (notes.length === 0) {
+            showNoNotesMessage(true);
+        } else {
+            showNoNotesMessage(false);
         }
-
-        if (input.classList.contains('agreedValue') && agreedValue <= 0) {
-            alert("Agreed Value must be greater than zero.");
-            input.focus();
-            return;
-        }
+    } catch (error) {
+        console.error('Error loading notes:', error);
+        showToast('Error loading notes. Please try again.', 'error');
+        showLoading(false);
     }
+}
 
-    function addRow(description, yourValue, otherValue, agreedValue, allocation, parentTable, divisionTable) {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td><input type="text" class="description" placeholder="Description" value="${description}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
-            <td><input type="number" class="yourValue" placeholder="Your Value" value="${yourValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
-            <td><input type="number" class="otherValue" placeholder="Other Party's Value" value="${otherValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
-            <td><input type="number" class="agreedValue" placeholder="Agreed Valuation" value="${agreedValue}" oninput="updateDivision(this)" onblur="validateInput(this)"></td>
-            <td>
-                <input type="range" class="allocation" min="0" max="100" value="${allocation}" oninput="updateDivision(this)">
-                <div class="slider-label">${allocation === 0 ? `Transfer to You: ${agreedValue}` : allocation === 100 ? `Transfer to Other Party: ${agreedValue}` : `Sale: ${agreedValue} (You: ${(agreedValue * (1 - allocation / 100)).toFixed(2)}, Other Party: ${(agreedValue * (allocation / 100)).toFixed(2)})`}</div>
-            </td>
-            <td><button onclick="removeRow(this)">Remove</button></td>
+// Save a new note
+async function saveNote() {
+    const title = noteTitleInput.value.trim();
+    const content = noteContentInput.value.trim();
+    
+    if (!title || !content) {
+        showToast('Please enter both title and content.', 'error');
+        return;
+    }
+    
+    try {
+        saveNoteBtn.disabled = true;
+        saveNoteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        
+        const { data, error } = await supabase
+            .from('notes')
+            .insert([
+                {
+                    title,
+                    content,
+                    user_id: currentUser.id,
+                    created_at: new Date().toISOString()
+                }
+            ])
+            .select();
+        
+        if (error) throw error;
+        
+        // Add new note to local array
+        notes.unshift(data[0]);
+        renderNotes();
+        
+        // Clear form
+        clearNoteForm();
+        
+        showToast('Note saved successfully!', 'success');
+        showNoNotesMessage(false);
+    } catch (error) {
+        console.error('Error saving note:', error);
+        showToast('Error saving note. Please try again.', 'error');
+    } finally {
+        saveNoteBtn.disabled = false;
+        saveNoteBtn.innerHTML = '<i class="fas fa-save"></i> Save Note';
+    }
+}
+
+// Update an existing note
+async function updateNote() {
+    const title = editNoteTitle.value.trim();
+    const content = editNoteContent.value.trim();
+    
+    if (!title || !content) {
+        showToast('Please enter both title and content.', 'error');
+        return;
+    }
+    
+    try {
+        updateNoteBtn.disabled = true;
+        updateNoteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        
+        const { error } = await supabase
+            .from('notes')
+            .update({
+                title,
+                content,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', editingNoteId);
+        
+        if (error) throw error;
+        
+        // Update local note
+        const noteIndex = notes.findIndex(note => note.id === editingNoteId);
+        if (noteIndex !== -1) {
+            notes[noteIndex].title = title;
+            notes[noteIndex].content = content;
+            notes[noteIndex].updated_at = new Date().toISOString();
+        }
+        
+        renderNotes();
+        closeModal();
+        showToast('Note updated successfully!', 'success');
+    } catch (error) {
+        console.error('Error updating note:', error);
+        showToast('Error updating note. Please try again.', 'error');
+    } finally {
+        updateNoteBtn.disabled = false;
+        updateNoteBtn.innerHTML = '<i class="fas fa-save"></i> Update';
+    }
+}
+
+// Delete a note
+async function deleteNote() {
+    if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        deleteNoteBtn.disabled = true;
+        deleteNoteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        
+        const { error } = await supabase
+            .from('notes')
+            .delete()
+            .eq('id', editingNoteId);
+        
+        if (error) throw error;
+        
+        // Remove note from local array
+        notes = notes.filter(note => note.id !== editingNoteId);
+        renderNotes();
+        
+        closeModal();
+        showToast('Note deleted successfully!', 'success');
+        
+        if (notes.length === 0) {
+            showNoNotesMessage(true);
+        }
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        showToast('Error deleting note. Please try again.', 'error');
+    } finally {
+        deleteNoteBtn.disabled = false;
+        deleteNoteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+    }
+}
+
+// Render notes in the UI
+function renderNotes() {
+    if (notes.length === 0) {
+        notesList.innerHTML = '';
+        return;
+    }
+    
+    notesList.innerHTML = notes.map(note => `
+        <div class="note-card" onclick="openEditModal('${note.id}')">
+            <h3>${escapeHtml(note.title)}</h3>
+            <p>${escapeHtml(note.content)}</p>
+            <div class="note-meta">
+                <span>${formatDate(note.created_at)}</span>
+                <div class="note-actions-menu">
+                    <button class="action-btn" onclick="event.stopPropagation(); openEditModal('${note.id}')" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn" onclick="event.stopPropagation(); deleteNoteById('${note.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Open edit modal
+function openEditModal(noteId) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    editingNoteId = noteId;
+    editNoteTitle.value = note.title;
+    editNoteContent.value = note.content;
+    
+    noteModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+// Close modal
+function closeModal() {
+    noteModal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    editingNoteId = null;
+    editNoteTitle.value = '';
+    editNoteContent.value = '';
+}
+
+// Delete note by ID (for direct deletion from card)
+async function deleteNoteById(noteId) {
+    if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('notes')
+            .delete()
+            .eq('id', noteId);
+        
+        if (error) throw error;
+        
+        // Remove note from local array
+        notes = notes.filter(note => note.id !== noteId);
+        renderNotes();
+        
+        showToast('Note deleted successfully!', 'success');
+        
+        if (notes.length === 0) {
+            showNoNotesMessage(true);
+        }
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        showToast('Error deleting note. Please try again.', 'error');
+    }
+}
+
+// Handle search
+function handleSearch() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        renderNotes();
+        return;
+    }
+    
+    const filteredNotes = notes.filter(note => 
+        note.title.toLowerCase().includes(searchTerm) ||
+        note.content.toLowerCase().includes(searchTerm)
+    );
+    
+    renderFilteredNotes(filteredNotes);
+}
+
+// Render filtered notes
+function renderFilteredNotes(filteredNotes) {
+    if (filteredNotes.length === 0) {
+        notesList.innerHTML = `
+            <div class="no-notes">
+                <i class="fas fa-search"></i>
+                <p>No notes found matching "${escapeHtml(searchInput.value)}"</p>
+            </div>
         `;
-        parentTable.appendChild(row);
-        const divisionRow = document.createElement("tr");
-        divisionRow.innerHTML = `
-            <td class="description">${description}</td>
-            <td class="you">${(agreedValue * (1 - allocation / 100)).toFixed(2)}</td>
-            <td class="other">${(agreedValue * (allocation / 100)).toFixed(2)}</td>
-        `;
-        divisionTable.appendChild(divisionRow);
+        return;
     }
+    
+    notesList.innerHTML = filteredNotes.map(note => `
+        <div class="note-card" onclick="openEditModal('${note.id}')">
+            <h3>${escapeHtml(note.title)}</h3>
+            <p>${escapeHtml(note.content)}</p>
+            <div class="note-meta">
+                <span>${formatDate(note.created_at)}</span>
+                <div class="note-actions-menu">
+                    <button class="action-btn" onclick="event.stopPropagation(); openEditModal('${note.id}')" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn" onclick="event.stopPropagation(); deleteNoteById('${note.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
 
-    function calculateAdjustments() {
-        let totalAssetYouValue = 0;
-        let totalAssetOtherValue = 0;
-        let totalLiabilityYouValue = 0;
-        let totalLiabilityOtherValue = 0;
+// Clear note form
+function clearNoteForm() {
+    noteTitleInput.value = '';
+    noteContentInput.value = '';
+    noteTitleInput.focus();
+}
 
-        assetTable.querySelectorAll('tr').forEach(row => {
-            const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-            const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
-            totalAssetYouValue += agreedValue * (1 - allocation / 100);
-            totalAssetOtherValue += agreedValue * (allocation / 100);
-        });
-
-        liabilityTable.querySelectorAll('tr').forEach(row => {
-            const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-            const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
-            totalLiabilityYouValue += agreedValue * (1 - allocation / 100);
-            totalLiabilityOtherValue += agreedValue * (allocation / 100);
-        });
-
-        const netTotalYouValue = totalAssetYouValue - totalLiabilityYouValue;
-        const netTotalOtherValue = totalAssetOtherValue - totalLiabilityOtherValue;
-
-        totalAssetYou.textContent = totalAssetYouValue.toFixed(2);
-        totalAssetOther.textContent = totalAssetOtherValue.toFixed(2);
-        totalLiabilityYou.textContent = totalLiabilityYouValue.toFixed(2);
-        totalLiabilityOther.textContent = totalLiabilityOtherValue.toFixed(2);
-        netTotalYou.textContent = netTotalYouValue.toFixed(2);
-        netTotalOther.textContent = netTotalOtherValue.toFixed(2);
+// Show/hide loading indicator
+function showLoading(show) {
+    if (show) {
+        loadingIndicator.classList.remove('hidden');
+        notesList.classList.add('hidden');
+    } else {
+        loadingIndicator.classList.add('hidden');
+        notesList.classList.remove('hidden');
     }
+}
 
-    // Test by adding an initial row
-    addAssetRow();
-    addLiabilityRow();
+// Show/hide no notes message
+function showNoNotesMessage(show) {
+    if (show) {
+        noNotesMessage.classList.remove('hidden');
+        notesList.classList.add('hidden');
+    } else {
+        noNotesMessage.classList.add('hidden');
+        notesList.classList.remove('hidden');
+    }
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.classList.remove('hidden');
+    
+    // Show the toast
+    setTimeout(() => toast.classList.add('show'), 100);
+    
+    // Hide the toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+    }, 3000);
+}
+
+// Utility functions
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+        if (diffInHours < 1) {
+            const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+            return diffInMinutes < 1 ? 'Just now' : `${diffInMinutes}m ago`;
+        }
+        return `${Math.floor(diffInHours)}h ago`;
+    } else if (diffInHours < 48) {
+        return 'Yesterday';
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Close modal when clicking outside
+noteModal.addEventListener('click', (e) => {
+    if (e.target === noteModal) {
+        closeModal();
+    }
 });
 
-function exportToCSV() {
-    const assetTable = document.getElementById("assetTable");
-    const liabilityTable = document.getElementById("liabilityTable");
-    const assetDivisionTable = document.getElementById("assetDivisionTable");
-    const liabilityDivisionTable = document.getElementById("liabilityDivisionTable");
-
-    let csv = 'Description,Your Value,Other Party\'s Value,Agreed Valuation,Allocation,You,Other Party\n';
-    assetTable.querySelectorAll('tr').forEach((row, index) => {
-        const description = row.querySelector('.description').value;
-        const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
-        const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
-        const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
-        const divisionRow = assetDivisionTable.children[index];
-        const you = divisionRow.querySelector('.you').textContent;
-        const other = divisionRow.querySelector('.other').textContent;
-        csv += `${description},${yourValue},${otherValue},${agreedValue},${allocation},${you},${other}\n`;
-    });
-
-    liabilityTable.querySelectorAll('tr').forEach((row, index) => {
-        const description = row.querySelector('.description').value;
-        const yourValue = parseFloat(row.querySelector('.yourValue').value) || 0;
-        const otherValue = parseFloat(row.querySelector('.otherValue').value) || 0;
-        const agreedValue = parseFloat(row.querySelector('.agreedValue').value) || 0;
-        const allocation = parseFloat(row.querySelector('.allocation').value) || 0;
-        const divisionRow = liabilityDivisionTable.children[index];
-        const you = divisionRow.querySelector('.you').textContent;
-        const other = divisionRow.querySelector('.other').textContent;
-        csv += `${description},${yourValue},${otherValue},${agreedValue},${allocation},${you},${other}\n`;
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('hidden', '');
-    a.setAttribute('href', url);
-    a.setAttribute('download', 'property_division.csv');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !noteModal.classList.contains('hidden')) {
+        closeModal();
+    }
+});

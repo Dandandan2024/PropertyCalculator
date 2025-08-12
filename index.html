@@ -3,111 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Division Calculator</title>
+    <title>Secure Notebook App</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <h1>Property Division Calculator</h1>
-    <div class="calculator">
-        <div class="assets-liabilities">
-            <h2>Assets and Liabilities</h2>
-            <h3>Assets</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>Your Value</th>
-                        <th>Other Party's Value</th>
-                        <th>Agreed Valuation</th>
-                        <th>Allocation</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="assetTable">
-                    <!-- Rows for assets will go here -->
-                </tbody>
-            </table>
-            <button onclick="addAssetRow()">Add Asset Row</button>
-            <h3>Liabilities</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>Your Value</th>
-                        <th>Other Party's Value</th>
-                        <th>Agreed Valuation</th>
-                        <th>Allocation</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="liabilityTable">
-                    <!-- Rows for liabilities will go here -->
-                </tbody>
-            </table>
-            <button onclick="addLiabilityRow()">Add Liability Row</button>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-book-open"></i> Secure Notebook</h1>
+                <p>Your thoughts, securely stored in the cloud</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="note-input-section">
+                <div class="note-input-container">
+                    <input type="text" id="noteTitle" placeholder="Note title..." class="note-title-input">
+                    <textarea id="noteContent" placeholder="Write your note here..." class="note-content-input"></textarea>
+                    <div class="note-actions">
+                        <button id="saveNote" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Note
+                        </button>
+                        <button id="clearNote" class="btn btn-secondary">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notes-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-notes-medical"></i> Your Notes</h2>
+                    <div class="search-container">
+                        <input type="text" id="searchNotes" placeholder="Search notes..." class="search-input">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                </div>
+                
+                <div id="notesList" class="notes-grid">
+                    <!-- Notes will be dynamically loaded here -->
+                </div>
+                
+                <div id="loadingIndicator" class="loading hidden">
+                    <i class="fas fa-spinner fa-spin"></i> Loading notes...
+                </div>
+                
+                <div id="noNotesMessage" class="no-notes hidden">
+                    <i class="fas fa-edit"></i>
+                    <p>No notes yet. Start writing your first note above!</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Note Modal for editing -->
+        <div id="noteModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Edit Note</h3>
+                    <button id="closeModal" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="editNoteTitle" class="note-title-input">
+                    <textarea id="editNoteContent" class="note-content-input"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button id="updateNote" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update
+                    </button>
+                    <button id="deleteNote" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button id="cancelEdit" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
         </div>
-        <div class="property-division">
-            <h2>Property Division</h2>
-            <h3>Assets</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>You</th>
-                        <th>Other Party</th>
-                    </tr>
-                </thead>
-                <tbody id="assetDivisionTable">
-                    <!-- Rows for asset division will go here -->
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td>Total Assets</td>
-                        <td id="totalAssetYou">0.00</td>
-                        <td id="totalAssetOther">0.00</td>
-                    </tr>
-                </tfoot>
-            </table>
-            <h3>Liabilities</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>You</th>
-                        <th>Other Party</th>
-                    </tr>
-                </thead>
-                <tbody id="liabilityDivisionTable">
-                    <!-- Rows for liability division will go here -->
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td>Total Liabilities</td>
-                        <td id="totalLiabilityYou">0.00</td>
-                        <td id="totalLiabilityOther">0.00</td>
-                    </tr>
-                </tfoot>
-            </table>
-            <h3>Net Total</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>You</th>
-                        <th>Other Party</th>
-                    </tr>
-                </thead>
-                <tfoot>
-                    <tr>
-                        <td>Net Total</td>
-                        <td id="netTotalYou">0.00</td>
-                        <td id="netTotalOther">0.00</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <button onclick="exportToCSV()">Export to CSV</button>
+
+        <!-- Toast notifications -->
+        <div id="toast" class="toast hidden"></div>
     </div>
-    <script src="script.js"></script>
+
+    <script type="module" src="script.js"></script>
 </body>
 </html>
