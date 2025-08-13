@@ -2,7 +2,7 @@
 import config from './config.js';
 
 // Initialize Supabase client
-const supabase = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 // Global variables
 let currentUser = null;
@@ -239,7 +239,7 @@ function renderNotes() {
 }
 
 // Open edit modal
-function openEditModal(noteId) {
+window.openEditModal = function(noteId) {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
     
@@ -252,7 +252,7 @@ function openEditModal(noteId) {
 }
 
 // Close modal
-function closeModal() {
+window.closeModal = function() {
     noteModal.classList.add('hidden');
     document.body.style.overflow = 'auto';
     editingNoteId = null;
@@ -261,7 +261,7 @@ function closeModal() {
 }
 
 // Delete note by ID (for direct deletion from card)
-async function deleteNoteById(noteId) {
+window.deleteNoteById = async function(noteId) {
     if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
         return;
     }
@@ -423,13 +423,13 @@ function debounce(func, wait) {
 // Close modal when clicking outside
 noteModal.addEventListener('click', (e) => {
     if (e.target === noteModal) {
-        closeModal();
+        window.closeModal();
     }
 });
 
 // Close modal with Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !noteModal.classList.contains('hidden')) {
-        closeModal();
+        window.closeModal();
     }
 });
