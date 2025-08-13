@@ -165,7 +165,7 @@ async function updateNote() {
         }
         
         renderNotes();
-        closeModal();
+        window.closeModal();
         showToast('Note updated successfully!', 'success');
     } catch (error) {
         console.error('Error updating note:', error);
@@ -197,7 +197,7 @@ async function deleteNote() {
         notes = notes.filter(note => note.id !== editingNoteId);
         renderNotes();
         
-        closeModal();
+        window.closeModal();
         showToast('Note deleted successfully!', 'success');
         
         if (notes.length === 0) {
